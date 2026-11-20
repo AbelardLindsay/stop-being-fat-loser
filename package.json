@@ -1,0 +1,37 @@
+{
+  "name": "stop-being-fat-loser",
+  "version": "0.1.0",
+  "description": "Personal Telegram bot: calorie target, meal photo estimates via ChatGPT plan usage, walk/cola/weigh-in reminders, roasts.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "wrangler d1 migrations apply stop-being-fat --remote",
+    "db:migrate:local": "wrangler d1 migrations apply stop-being-fat --local",
+    "set-webhook": "node scripts/set-webhook.ts",
+    "selfhost": "node scripts/selfhost.ts",
+    "db:migrate:selfhost": "wrangler d1 migrations apply stop-being-fat --local --persist-to .data"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0",
+    "jose": "^6.2.18"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261120.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.165.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261118.1": true
+  }
+}

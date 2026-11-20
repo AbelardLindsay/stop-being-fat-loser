@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stop-being-fat-loser",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Buffer for base64-encoding meal photos.
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  // No database_id on purpose: wrangler resolves the database by name (and creates it on first deploy),
+  // so no account-specific IDs live in this public repo. Don't commit one if wrangler writes it back.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stop-being-fat",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // Vision-capable model slug available on ChatGPT plans.
+    "OPENAI_MODEL": "gpt-6.1-sol"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Secrets (wrangler secret put): TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, ALLOWED_TELEGRAM_IDS
+}
