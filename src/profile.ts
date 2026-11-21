@@ -10,7 +10,7 @@ import {
   type Pace,
   type Sex,
 } from './nutrition.ts';
-import { scheduledMinute, type ScheduleProfile } from './schedule.ts';
+import { isoWeekdayOf, scheduledMinute, type ScheduleProfile } from './schedule.ts';
 
 /** Every column onboarding fills, narrowed to non-null. */
 export interface Profile {
@@ -135,9 +135,9 @@ export function userMacroTargets(u: User): Macros {
   return macroTargets(u.target_kcal ?? 0, u.goal_weight_kg ?? 0, u.activity ?? 'sedentary');
 }
 
-/** Daily water target from the user's current weight. */
-export function userWaterTarget(u: User): number {
-  return waterTargetMl(u.current_weight_kg ?? 0);
+/** Daily water target for local `date`: base by sex, more on the user's training days. */
+export function userWaterTarget(u: User, date: string): number {
+  return waterTargetMl(u.sex ?? 'male', u.training_days.includes(isoWeekdayOf(date)));
 }
 
 /** Parses "82.5" or "82,5"; NaN for anything else. */

@@ -108,7 +108,7 @@ async function remindWater(env: Env, api: Api, u: User, local: LocalNow): Promis
   const schedule = completeProfile(u).schedule;
   const minute = dueWaterMinute(schedule, local.minute);
   if (minute === null) return;
-  const target = userWaterTarget(u);
+  const target = userWaterTarget(u, local.date);
   const ml = await waterOn(env.DB, u.telegram_id, local.date);
   if (ml >= target) return;
   if (!(await claimNotification(env.DB, u.telegram_id, `water_${minute}`, local.date))) return;

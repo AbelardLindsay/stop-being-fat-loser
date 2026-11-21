@@ -19,11 +19,12 @@ import {
   type User,
 } from './db.ts';
 import type { Env } from './env.ts';
-import { escapeHtml, t } from './i18n.ts';
+import { escapeHtml, t, type Lang } from './i18n.ts';
 import { handleMealCorrection, handleMealPhoto, startMealEdit } from './meals.ts';
 import { waterKeyboard } from './notify.ts';
-import { remainingPlan, targetCalories, weeksToGoal, type Macros } from './nutrition.ts';
+import { ACTIVITIES, remainingPlan, targetCalories, weeksToGoal, type Macros } from './nutrition.ts';
 import {
+  activityKeyboard,
   handleOnboardingCallback,
   handleOnboardingText,
   sendStepPrompt,
@@ -44,6 +45,11 @@ import { isAwake, localNow, parseHHMM } from './schedule.ts';
 import { buildHistory, buildMealsHistory, buildUsage } from './stats.ts';
 
 export type BotCtx = Context & { env: Env; user: User };
+
+/** /training keyboard: weekday toggles, Done, and a way to change the activity level. */
+function trainingKeyboard(lang: Lang, days: number[]): InlineKeyboard {
+  return weekdayKeyboard(lang, 'td:', (d) => days.includes(d), true).row().text(t(lang, 'btn_change_activity'), 'act:menu');
+}
 
 const HTML = { parse_mode: 'HTML' } as const;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -110,6 +116,7 @@ function setup(bot: Bot<BotCtx>, env: Env): void {
       else if (data.startsWith('meal_del:')) await handleMealDelete(ctx, Number(data.slice('meal_del:'.length)));
       else if (data.startsWith('meal_edit:')) await startMealEdit(ctx, Number(data.slice('meal_edit:'.length)));
       else if (data.startsWith('td:')) await handleTrainingToggle(ctx, data.slice('td:'.length));
+      else if (data.startsWith('act:')) await handleActivityButton(ctx, data.slice('act:'.length));
       else if (data.startsWith('water:')) toast = await handleWaterButton(ctx, data);
     } finally {
       await ctx.answerCallbackQuery(toast === undefined ? undefined : { text: toast }).catch(() => undefined);
@@ -176,11 +183,13 @@ function setup(bot: Bot<BotCtx>, env: Env): void {
     await ctx.reply(t(ctx.user.language, 'history', await buildHistory(env.DB, ctx.user, n, today)), HTML);
   });
   bot.command('walk', setWalkTime);
-  bot.command('training', (ctx) =>
-    ctx.reply(t(ctx.user.language, 'training_prompt'), {
-      reply_markup: weekdayKeyboard(ctx.user.language, 'td:', (d) => ctx.user.training_days.includes(d), true),
-    }),
-  );
+  bot.command('training', (ctx) => {
+    const lang = ctx.user.language;
+    if (ctx.user.activity === 'sedentary') {
+      return ctx.reply(t(lang, 'training_sedentary'), { ...HTML, reply_markup: activityKeyboard(lang, 'act:') });
+    }
+    return ctx.reply(t(lang, 'training_prompt'), { reply_markup: trainingKeyboard(lang, ctx.user.training_days) });
+  });
   bot.command('weight', async (ctx) => {
     const kg = parseDecimal(ctx.match);
     if (kg >= 35 && kg <= 350) await logWeight(ctx, kg);
@@ -325,6 +334,10 @@ async function setWalkTime(ctx: BotCtx & { match: string }): Promise<void> {
 /** `td:<1-7>` toggles a training day on the /training keyboard; `td:done` closes it. */
 async function handleTrainingToggle(ctx: BotCtx, value: string): Promise<void> {
   const u = ctx.user;
+  if (u.activity === 'sedentary') {
+    await ctx.editMessageText(t(u.language, 'training_sedentary'), { ...HTML, reply_markup: activityKeyboard(u.language, 'act:') });
+    return;
+  }
   if (value === 'done') {
     await ctx.editMessageText(t(u.language, 'training_saved', { days: u.training_days }), HTML);
     return;
@@ -333,9 +346,27 @@ async function handleTrainingToggle(ctx: BotCtx, value: string): Promise<void> {
   if (!Number.isInteger(day) || day < 1 || day > 7) return;
   const trainingDays = toggleDay(u.training_days, day);
   await patchUser(ctx.env.DB, u, { training_days: trainingDays });
-  await ctx.editMessageReplyMarkup({
-    reply_markup: weekdayKeyboard(u.language, 'td:', (d) => trainingDays.includes(d), true),
-  });
+  await ctx.editMessageReplyMarkup({ reply_markup: trainingKeyboard(u.language, trainingDays) });
+}
+
+/** `act:menu` shows the activity picker; `act:<activity>` saves it, recomputes the calorie target, and offers training days when they apply. */
+async function handleActivityButton(ctx: BotCtx, value: string): Promise<void> {
+  const u = ctx.user;
+  const lang = u.language;
+  // Stale button: completeProfile would throw on an incomplete profile.
+  if (u.onboarding_step !== null) return;
+  if (value === 'menu') {
+    await ctx.editMessageText(t(lang, 'ob_activity'), { reply_markup: activityKeyboard(lang, 'act:') });
+    return;
+  }
+  const activity = ACTIVITIES.find((a) => a === value);
+  if (!activity) return;
+  const target = targetCalories({ ...completeProfile(u), activity });
+  await patchUser(ctx.env.DB, u, activity === 'sedentary' ? { activity, training_days: [], target_kcal: target } : { activity, target_kcal: target });
+  await ctx.editMessageText(t(lang, 'activity_saved', { activity, target, macros: userMacroTargets(u) }), HTML);
+  if (activity !== 'sedentary') {
+    await ctx.reply(t(lang, 'training_prompt'), { reply_markup: trainingKeyboard(lang, u.training_days) });
+  }
 }
 
 async function undoLastMeal(ctx: BotCtx): Promise<void> {

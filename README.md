@@ -4,9 +4,9 @@ A Telegram bot for losing weight, in hard mode. It:
 
 - onboards you: body stats, goal, activity, which meals you actually eat, work, training and sleep schedule;
 - computes a daily calorie target (Mifflin–St Jeor) and splits it across only the meals you eat;
-- sets high-protein targets for a cut: protein 2.0 g per kg of goal weight (2.2 with 3–5 workouts a week, 2.4 with 6–7), fat 25% of calories, carbs the rest;
+- sets high-protein targets for a cut: protein 1.6–2.2 g per kg of goal weight by activity, fat 25% of calories kept within 0.6–1.0 g per kg of goal weight, carbs the rest;
 - estimates calories and protein/fat/carbs from meal photos (caption them for precision, ✏️ to correct), and keeps a per-day history;
-- tracks water (30 ml per kg, 1.5–4 l) with a reminder every 2 hours;
+- tracks water (2.0 l for men, 1.6 l for women, +0.5 l on training days) with a reminder every 2 hours;
 - reminds you to walk, skip the cola, weigh in weekly, and sends a Sunday summary;
 - roasts bad meals, desserts, rest-day protein shakes and inactivity — with profanity and fat jokes, in English or Ukrainian.
 
@@ -111,7 +111,7 @@ All times are local to the time zone chosen during setup, and are only sent whil
 | Cola check | 1 h before sleep |
 | No meals logged | 2 h before sleep |
 | Weigh-in | 15 min after waking on the chosen day |
-| Weekly summary | Sunday, 30 min before sleep |
+| Weekly summary | Sunday 21:00, or 30 min before an earlier bedtime |
 
 To change the defaults, edit `scheduledMinute` and `waterMinutes` in `src/schedule.ts`.
 

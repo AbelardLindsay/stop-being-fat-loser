@@ -3,7 +3,7 @@ import type { BotCtx } from './bot.ts';
 import { insertWeight, nowSec, patchUser, type OnboardingStep, type User, type UserPatch } from './db.ts';
 import { getAccount, ownerId } from './openai.ts';
 import { t, type Lang } from './i18n.ts';
-import { MEAL_SLOTS, targetCalories, type Activity, type MealSlot, type Pace, type Sex } from './nutrition.ts';
+import { ACTIVITIES, MEAL_SLOTS, targetCalories, type Activity, type MealSlot, type Pace, type Sex } from './nutrition.ts';
 import { completeProfile, parseDecimal, summaryParams } from './profile.ts';
 import { isValidTimeZone, localNow, parseRange } from './schedule.ts';
 
@@ -29,9 +29,11 @@ const TIMEZONES = ['Europe/Kyiv', 'Europe/Warsaw', 'Europe/Berlin', 'Europe/Lond
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
 const HTML = { parse_mode: 'HTML' } as const;
 
-function nextStep(step: OnboardingStep, workDays: number[]): OnboardingStep | null {
+function nextStep(step: OnboardingStep, u: Pick<User, 'work_days' | 'activity'>): OnboardingStep | null {
   const after = STEPS.slice(STEPS.indexOf(step) + 1);
-  return after.find((s) => s !== 'work_hours' || workDays.length > 0) ?? null;
+  return (
+    after.find((s) => (s !== 'work_hours' || u.work_days.length > 0) && (s !== 'training_days' || u.activity !== 'sedentary')) ?? null
+  );
 }
 
 /** Weekdays with `day` toggled, in Mon..Sun order. */
@@ -46,6 +48,16 @@ export function weekdayKeyboard(lang: Lang, prefix: string, selected: (d: number
     if (d === 4) kb.row();
   }
   if (done) kb.row().text(t(lang, 'btn_done'), `${prefix}done`);
+  return kb;
+}
+
+/** One activity level per row; callback data `${prefix}<activity>`. */
+export function activityKeyboard(lang: Lang, prefix: string): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  ACTIVITIES.forEach((a, i) => {
+    if (i > 0) kb.row();
+    kb.text(t(lang, `btn_activity_${a}`), `${prefix}${a}`);
+  });
   return kb;
 }
 
@@ -92,14 +104,7 @@ function stepPrompt(u: User): { text: string; keyboard?: InlineKeyboard } {
     case 'activity':
       return {
         text: t(lang, 'ob_activity'),
-        keyboard: new InlineKeyboard()
-          .text(t(lang, 'btn_activity_sedentary'), 'ob:act:sedentary')
-          .row()
-          .text(t(lang, 'btn_activity_light'), 'ob:act:light')
-          .row()
-          .text(t(lang, 'btn_activity_moderate'), 'ob:act:moderate')
-          .row()
-          .text(t(lang, 'btn_activity_active'), 'ob:act:active'),
+        keyboard: activityKeyboard(lang, 'ob:act:'),
       };
     case 'meals':
       return { text: t(lang, 'ob_meals'), keyboard: mealsKeyboard(u) };
@@ -142,7 +147,7 @@ async function advance(ctx: BotCtx, patch: UserPatch): Promise<void> {
   const u = ctx.user;
   const step = u.onboarding_step;
   if (step === null) return;
-  const next = nextStep(step, patch.work_days ?? u.work_days);
+  const next = nextStep(step, { work_days: patch.work_days ?? u.work_days, activity: patch.activity ?? u.activity });
   if (next !== null) {
     await patchUser(ctx.env.DB, u, { ...patch, onboarding_step: next });
     await sendStepPrompt(ctx);
@@ -201,11 +206,13 @@ export async function handleOnboardingCallback(ctx: BotCtx, data: string): Promi
       await closePrompt(ctx);
       await advance(ctx, { pace: value satisfies Pace });
       return undefined;
-    case 'act':
-      if (value !== 'sedentary' && value !== 'light' && value !== 'moderate' && value !== 'active') return undefined;
+    case 'act': {
+      const activity = ACTIVITIES.find((a) => a === value);
+      if (!activity) return undefined;
       await closePrompt(ctx);
-      await advance(ctx, { activity: value satisfies Activity });
+      await advance(ctx, activity === 'sedentary' ? { activity, training_days: [] } : { activity });
       return undefined;
+    }
     case 'meal': {
       if (value === 'done') {
         if (!u.meals.some((s) => s !== 'snack')) return t(u.language, 'err_meals');

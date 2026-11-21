@@ -64,9 +64,15 @@ describe('dueNotifications', () => {
     expect(dueNotifications(custom, { minute: 1110, isoWeekday: 2 })).not.toContain('walk');
     expect(dueNotifications(custom, { minute: 1170, isoWeekday: 6 })).toContain('walk');
   });
-  it('sends the weekly summary on Sunday 30 min before sleep only', () => {
-    expect(dueNotifications(office, { minute: 1350, isoWeekday: 7 })).toContain('weekly_summary');
-    expect(dueNotifications(office, { minute: 1350, isoWeekday: 6 })).not.toContain('weekly_summary');
+  it('sends the weekly summary on Sunday evening, never at the start of the day', () => {
+    expect(dueNotifications(office, { minute: 1260, isoWeekday: 7 })).toContain('weekly_summary');
+    expect(dueNotifications(office, { minute: 1350, isoWeekday: 7 })).not.toContain('weekly_summary');
+    expect(dueNotifications(office, { minute: 1260, isoWeekday: 6 })).not.toContain('weekly_summary');
+    const owl: ScheduleProfile = { ...office, wake: 540, sleep: 60 };
+    expect(dueNotifications(owl, { minute: 1260, isoWeekday: 7 })).toContain('weekly_summary');
+    expect(dueNotifications(owl, { minute: 30, isoWeekday: 7 })).not.toContain('weekly_summary');
+    const early: ScheduleProfile = { ...office, wake: 360, sleep: 1260 };
+    expect(dueNotifications(early, { minute: 1230, isoWeekday: 7 })).toContain('weekly_summary');
   });
   it('reminds about water every 2 h, not in the last hour before sleep', () => {
     expect(waterMinutes(480, 1380)).toEqual([600, 720, 840, 960, 1080, 1200, 1320]);

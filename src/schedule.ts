@@ -94,6 +94,9 @@ export interface ScheduleProfile {
   walkTime: number | null;
 }
 
+/** 21:00: the weekly summary goes out on Sunday evening. */
+const WEEKLY_SUMMARY_MINUTE = 1260;
+
 /** Single source of reminder timing. Returns minute of day, or null when the kind doesn't run that day. */
 export function scheduledMinute(kind: NotificationKind, p: ScheduleProfile, isoWeekday: number): number | null {
   let s: number;
@@ -117,7 +120,11 @@ export function scheduledMinute(kind: NotificationKind, p: ScheduleProfile, isoW
       break;
     case 'weekly_summary':
       if (isoWeekday !== 7) return null;
-      s = p.sleep - 30;
+      // 21:00, or 30 min before an earlier bedtime; a bedtime past midnight never pulls it to the start of Sunday.
+      s =
+        isAwake(WEEKLY_SUMMARY_MINUTE, p.wake, p.sleep) && (p.sleep < p.wake || p.sleep - 30 >= WEEKLY_SUMMARY_MINUTE)
+          ? WEEKLY_SUMMARY_MINUTE
+          : p.sleep - 30;
       break;
   }
   return ((s % DAY) + DAY) % DAY;

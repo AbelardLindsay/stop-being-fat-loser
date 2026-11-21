@@ -4,6 +4,7 @@ export type Pace = 'slow' | 'normal' | 'fast';
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export const MEAL_SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+export const ACTIVITIES: readonly Activity[] = ['sedentary', 'light', 'moderate', 'active'];
 
 const ACTIVITY_FACTOR: Record<Activity, number> = {
   sedentary: 1.2,
@@ -96,26 +97,28 @@ export interface Macros {
   carbs: number;
 }
 
-/** Higher with more training: more protein preserves muscle in a deficit. */
-const PROTEIN_G_PER_GOAL_KG: Record<Activity, number> = { sedentary: 2.0, light: 2.0, moderate: 2.2, active: 2.4 };
+/** 1.6 g/kg is enough without training in a deficit; up to 2.2 g/kg preserves muscle with hard training. */
+const PROTEIN_G_PER_GOAL_KG: Record<Activity, number> = { sedentary: 1.6, light: 1.8, moderate: 2.0, active: 2.2 };
 const FAT_KCAL_SHARE = 0.25;
+const FAT_MIN_G_PER_GOAL_KG = 0.6;
+const FAT_MAX_G_PER_GOAL_KG = 1.0;
 
-/** High-protein cut: protein by activity per kg of goal weight, fat 25% of kcal, carbs fill the rest. */
+/** Cut macros: protein 1.6–2.2 g/kg of goal weight by activity; fat 25% of kcal kept within 0.6–1.0 g/kg of goal weight; carbs fill the rest. */
 export function macroTargets(targetKcal: number, goalKg: number, activity: Activity): Macros {
   const protein = Math.round(PROTEIN_G_PER_GOAL_KG[activity] * goalKg);
-  const fatKcal = FAT_KCAL_SHARE * targetKcal;
+  const fat = Math.min(FAT_MAX_G_PER_GOAL_KG * goalKg, Math.max(FAT_MIN_G_PER_GOAL_KG * goalKg, (FAT_KCAL_SHARE * targetKcal) / 9));
   return {
     protein,
-    fat: Math.round(fatKcal / 9),
-    carbs: Math.max(0, Math.round((targetKcal - protein * 4 - fatKcal) / 4)),
+    fat: Math.round(fat),
+    carbs: Math.max(0, Math.round((targetKcal - protein * 4 - fat * 9) / 4)),
   };
 }
 
-const WATER_ML_PER_KG = 30;
-const WATER_MIN_ML = 1500;
-const WATER_MAX_ML = 4000;
+/** Drinking water: EFSA adequate total intake (2.5 l men, 2.0 l women) minus ~20% that comes from food. */
+const WATER_BASE_ML: Record<Sex, number> = { male: 2000, female: 1600 };
+const WATER_TRAINING_EXTRA_ML = 500;
 
-/** Daily water: 30 ml per kg of current weight, rounded to 100 ml, within 1.5–4 l. */
-export function waterTargetMl(weightKg: number): number {
-  return Math.min(WATER_MAX_ML, Math.max(WATER_MIN_ML, Math.round((WATER_ML_PER_KG * weightKg) / 100) * 100));
+/** Daily water target; training days add 500 ml for sweat losses. */
+export function waterTargetMl(sex: Sex, trainingDay: boolean): number {
+  return WATER_BASE_ML[sex] + (trainingDay ? WATER_TRAINING_EXTRA_ML : 0);
 }

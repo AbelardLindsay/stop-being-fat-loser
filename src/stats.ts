@@ -14,7 +14,7 @@ import {
 } from './db.ts';
 import type { HistoryDay, HistoryParams, MealsHistoryDay, UsageParams, WeekSummaryParams } from './i18n.ts';
 import { nowSec } from './openai.ts';
-import type { Macros } from './nutrition.ts';
+import { waterTargetMl, type Macros } from './nutrition.ts';
 import { userMacroTargets, userWaterTarget } from './profile.ts';
 import { addDays, isoWeekdayOf, localNow } from './schedule.ts';
 
@@ -110,8 +110,7 @@ export async function buildWeekSummary(
     checkinCounts(db, u.telegram_id, from, today),
     waterBetween(db, u.telegram_id, from, today),
   ]);
-  const waterTarget = userWaterTarget(u);
-  const waterDays = Object.values(water).filter((ml) => ml >= waterTarget).length;
+  const waterDays = Object.entries(water).filter(([date, ml]) => ml >= userWaterTarget(u, date)).length;
   const target = u.target_kcal ?? 0;
   const macrosTarget = userMacroTargets(u);
   const avg = averages(totals);
@@ -135,7 +134,8 @@ export async function buildWeekSummary(
     weightChange,
     avgWaterMl: Object.values(water).reduce((sum, ml) => sum + ml, 0) / 7,
     waterDays,
-    waterTarget,
+    waterTarget: waterTargetMl(u.sex ?? 'male', false),
+    waterTargetTraining: u.training_days.length > 0 ? waterTargetMl(u.sex ?? 'male', true) : null,
   };
   const bad =
     totals.length < 5 ||

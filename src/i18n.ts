@@ -111,6 +111,7 @@ export interface WeekSummaryParams {
   avgWaterMl: number;
   waterDays: number;
   waterTarget: number;
+  waterTargetTraining: number | null;
 }
 
 export interface UsageParams {
@@ -466,7 +467,7 @@ const en = {
             `💪 Protein target hit: <b>${p.proteinHitDays}</b>/${p.loggedDays} days`,
           ].join('\n'),
       `🚶 Walks: <b>${p.walks}</b>/7 · 🥤 Cola-free: <b>${p.colaFree}</b>/7`,
-      `💧 Water: avg <b>${Math.round(p.avgWaterMl)}</b> ml/day · target hit <b>${p.waterDays}</b>/7 (target ${p.waterTarget} ml)`,
+      `💧 Water: avg <b>${Math.round(p.avgWaterMl)}</b> ml/day · target hit <b>${p.waterDays}</b>/7 (target ${p.waterTarget} ml${p.waterTargetTraining === null ? '' : `, ${p.waterTargetTraining} on training days`})`,
       p.weight === null
         ? '⚖️ No weigh-in this week.'
         : `⚖️ ${p.weight.toFixed(1)} kg${p.weightChange === null ? '' : ` (${signed(p.weightChange)} kg this week)`}`,
@@ -505,6 +506,15 @@ const en = {
   walk_not_awake: 'That’s outside your waking hours — I’d never send it.',
   ob_training_days: 'Which days do you train? Tap to toggle, then Done. Protein shakes are fine on those days (none is fine).',
   training_prompt: 'Training days — tap to toggle, then Done.',
+  training_sedentary:
+    'You picked “Desk job, no workouts”, so there are no training days. Started working out? Pick your activity level:',
+  btn_change_activity: '🔄 Change activity level',
+  activity_saved: (p: { activity: Activity; target: number; macros: Macros }) =>
+    [
+      `✅ Activity: <b>${EN_ACTIVITY[p.activity]}</b>`,
+      `Daily target: <b>${p.target} kcal</b>`,
+      macroLine(EN_MACRO, p.macros),
+    ].join('\n'),
   training_saved: (p: { days: number[] }) =>
     `💪 Training days: <b>${p.days.length > 0 ? p.days.map((d) => EN_WD[d]).join(', ') : 'none'}</b>`,
   cola_streak: (p: { streak: number }) => `Cola-free streak: <b>${p.streak}</b>`,
@@ -765,7 +775,7 @@ const uk: Messages = {
             `💪 Норму білка виконано: <b>${p.proteinHitDays}</b>/${p.loggedDays} днів`,
           ].join('\n'),
       `🚶 Прогулянки: <b>${p.walks}</b>/7 · 🥤 Без коли: <b>${p.colaFree}</b>/7`,
-      `💧 Вода: у середньому <b>${Math.round(p.avgWaterMl)}</b> мл/день · норма виконана <b>${p.waterDays}</b>/7 (норма ${p.waterTarget} мл)`,
+      `💧 Вода: у середньому <b>${Math.round(p.avgWaterMl)}</b> мл/день · норма виконана <b>${p.waterDays}</b>/7 (норма ${p.waterTarget} мл${p.waterTargetTraining === null ? '' : `, ${p.waterTargetTraining} у дні тренувань`})`,
       p.weight === null
         ? '⚖️ Цього тижня без зважування.'
         : `⚖️ ${p.weight.toFixed(1)} кг${p.weightChange === null ? '' : ` (${signed(p.weightChange)} кг за тиждень)`}`,
@@ -801,6 +811,15 @@ const uk: Messages = {
   walk_not_awake: 'Це поза часом, коли ти не спиш, — я б його ніколи не надіслав.',
   ob_training_days: 'У які дні тренуєшся? Натискай, щоб обрати, потім «Готово». У ці дні протеїновий шейк — норм (можна жодного).',
   training_prompt: 'Дні тренувань — натискай, щоб обрати, потім «Готово».',
+  training_sedentary:
+    'Ти обрав(ла) «Сидяча робота, без тренувань», тож днів тренувань немає. Почав(ла) тренуватися? Обери рівень активності:',
+  btn_change_activity: '🔄 Змінити рівень активності',
+  activity_saved: (p) =>
+    [
+      `✅ Активність: <b>${UK_ACTIVITY[p.activity]}</b>`,
+      `Денна норма: <b>${p.target} ккал</b>`,
+      macroLine(UK_MACRO, p.macros),
+    ].join('\n'),
   training_saved: (p) => `💪 Дні тренувань: <b>${p.days.length > 0 ? p.days.map((d) => UK_WD[d]).join(', ') : 'немає'}</b>`,
   cola_streak: (p) => `Днів без коли поспіль: <b>${p.streak}</b>`,
   notif_cola_check: 'Кола сьогодні була?',

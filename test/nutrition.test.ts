@@ -44,13 +44,15 @@ describe('meal split', () => {
   it('computes weeks to goal', () => {
     expect(weeksToGoal(100, 85, 'normal')).toBe(30);
   });
-  it('sets high-protein macros that grow with training', () => {
-    expect(macroTargets(1830, 85, 'sedentary')).toEqual({ protein: 170, fat: 51, carbs: 173 });
-    expect(macroTargets(2000, 85, 'active')).toEqual({ protein: 204, fat: 56, carbs: 171 });
+  it('sets protein by activity, fat within 0.6–1.0 g/kg, carbs the rest', () => {
+    expect(macroTargets(1830, 85, 'sedentary')).toEqual({ protein: 136, fat: 51, carbs: 207 });
+    expect(macroTargets(2000, 85, 'active')).toEqual({ protein: 187, fat: 56, carbs: 188 });
+    expect(macroTargets(3000, 60, 'moderate')).toEqual({ protein: 120, fat: 60, carbs: 495 });
   });
-  it('sets a water target from weight within 1.5–4 l', () => {
-    expect(waterTargetMl(100)).toBe(3000);
-    expect(waterTargetMl(40)).toBe(1500);
-    expect(waterTargetMl(150)).toBe(4000);
+  it('sets a water target by sex, higher on training days', () => {
+    expect(waterTargetMl('male', false)).toBe(2000);
+    expect(waterTargetMl('male', true)).toBe(2500);
+    expect(waterTargetMl('female', false)).toBe(1600);
+    expect(waterTargetMl('female', true)).toBe(2100);
   });
 });
